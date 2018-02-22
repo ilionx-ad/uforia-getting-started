@@ -127,5 +127,7 @@ Start the TestRPC service. Run `testrpc`.
 
 Start the webserver. Run `ng serve -o`
 
+## Patry trick - hot reloading
 
+You can also leverage the Hot Reloading feature that the Angular CLI brings. By saving the .sol file, it generates the .ts file which causes a reload in the browser when using `ng serve`. This should also speed up development! 
 
