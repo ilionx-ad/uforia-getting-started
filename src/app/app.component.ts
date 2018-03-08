@@ -27,7 +27,7 @@ export class AppComponent implements OnInit {
 
     // Deploy the actual contract to the blockchain.
     // In actual application you can delay the point of deployment to support use-cases.
-    let receipt = repository.deploy(50, 1, ["Person A", "Person B"])
+    let receipt = await repository.deploy(50, 1, ["Person A", "Person B"])
 
     // Try to get the deployed contract. This can take a while, see below. TestRPC should be instant.
     this.contract = receipt.getDeployed();
