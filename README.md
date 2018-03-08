@@ -96,7 +96,8 @@ export class AppComponent implements OnInit {
 
     // Deploy the actual contract to the blockchain.
     // In actual application you can delay the point of deployment to support use-cases.
-    let receipt = repository.deploy(50, 1, ["Person A", "Person B"])
+    // On the actual Ethereum network this operation can take some time, so we support async delpyoyments.
+    let receipt = await repository.deploy(50, 1, ["Person A", "Person B"])
 
     // Try to get the deployed contract. This can take a while, see below. TestRPC should be instant.
     this.contract = receipt.getDeployed();
@@ -118,7 +119,6 @@ export class AppComponent implements OnInit {
     alert("Total tokens should be 50 and are: " + totalTokens);
   }
 }
-
 ```
 
  ## Test it!!
