@@ -30,7 +30,7 @@ Run `npm install -g ganache-cli`
 
 http://truffleframework.com/ganache/
 
-## Windows Users!
+## Optional: install Python on Windows
 
 To be able to use the `web3` npm package you need to run the following command as an administrator, which will install phyton locally.
 
@@ -164,7 +164,7 @@ It is advisable to extend the blocktime by some seconds as this will highlight a
 
 Luckily the Uforia compiler generates a proxy that is fully async compatible for all operations involving transactions. `async` and `await` are your best friends.  
 
-## Patry trick - hot reloading
+## Patry trick - Hot Reloading
 
 You can also leverage the Hot Reloading feature that the Angular CLI brings. By saving the `*.sol` file, it generates the .ts file which causes a reload in the browser when using `ng serve`. This should also speed up development! 
 
