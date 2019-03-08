@@ -1,0 +1,5 @@
+{
+    "solidity.soliumRules": {
+        "indentation": [],
+    }
+}

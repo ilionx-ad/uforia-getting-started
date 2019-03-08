@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { IVotingVoterDetailsResponse, IVotingVoterInfoResponse, Voting, VotingRepository } from './../contracts/Voting'
+import { Ballot, BallotRepository } from './../contracts/Voting'
 import Web3 = require('web3');
 
 @Component({
@@ -8,7 +8,7 @@ import Web3 = require('web3');
   styleUrls: ['./app.component.css']
 })
 export class AppComponent implements OnInit {
-  contract: Voting;
+  contract: Ballot;
   title = 'app';
 
   async ngOnInit() {
@@ -26,12 +26,12 @@ export class AppComponent implements OnInit {
     web3.eth.defaultAccount = web3.eth.accounts[0];
 
     // Create the repository passing web3
-    let repository = new VotingRepository(web3)
+    let repository = new BallotRepository(web3)
 
     // Deploy a new instance of the contract to the blockchain.
     // In actual application you can delay the point of deployment to support use-cases.
     // On the actual Ethereum network this operation can take some time, so we support async delpyoyments.
-    let receipt = await repository.deploy(50, 1, ["Person A", "Person B"])
+    let receipt = await repository.deploy(["Person A", "Person B"], 50)
 
     // Get the  deployed contract. This can take a while, see below. 
     // NOTE: For local testing, ganache or ganache-cli should be running.
@@ -47,9 +47,9 @@ export class AppComponent implements OnInit {
     }
 
     // From this point we can interact with the deployed instance of the contract
-    let totalTokens = await this.contract.totalTokens();
+    let firstProposal = await this.contract.proposals(0);
 
-    // In the constructor we put in 50 tokens, so the result should be 50. :)
-    alert("Total tokens should be 50 and are: " + totalTokens);
+    // In the constructor we put "Person A" first, so the result should be Person A. :)
+    alert("The first candidate name is: " + firstProposal.name + " and has " + firstProposal.voteCount + " votes.");
   }
 }

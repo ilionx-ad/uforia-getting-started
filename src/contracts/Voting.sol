@@ -1,133 +1,145 @@
-pragma solidity ^0.4.18; //We have to specify what version of the compiler this code will use
+pragma solidity >=0.4.24 <0.6.0;
 
-contract Voting {
-
-  // We use the struct datatype to store the voter information.
-  struct voter {
-    address voterAddress; // The address of the voter
-    uint tokensBought;    // The total no. of tokens this voter owns
-    uint[] tokensUsedPerCandidate; // Array to keep track of votes per candidate.
-    /* We have an array of candidates initialized below.
-     Every time this voter votes with her tokens, the value at that
-     index is incremented. Example, if candidateList array declared
-     below has ["Rama", "Nick", "Jose"] and this
-     voter votes 10 tokens to Nick, the tokensUsedPerCandidate[1]
-     will be incremented by 10.
-     */
-  }
-
-  /* mapping is equivalent to an associate array or hash
-   The key of the mapping is candidate name stored as type bytes32 and value is
-   an unsigned integer which used to store the vote count
-   */
-
-  mapping (address => voter) public voterInfo;
-
-  /* Solidity doesn't let you return an array of strings yet. We will use an array of bytes32
-   instead to store the list of candidates
-   */
-
-  mapping (bytes32 => uint) public votesReceived;
-
-  bytes32[] public candidateList;
-
-  uint public totalTokens; // Total no. of tokens available for this election
-  uint public balanceTokens; // Total no. of tokens still available for purchase
-  uint public tokenPrice; // Price per token
-
-  /* When the contract is deployed on the blockchain, we will initialize
-   the total number of tokens for sale, cost per token and all the candidates
-   */
-  function Voting(uint tokens, uint pricePerToken, bytes32[] candidateNames) public {
-    candidateList = candidateNames;
-    totalTokens = tokens;
-    balanceTokens = tokens;
-    tokenPrice = pricePerToken;
-  }
-
-  function totalVotesFor(bytes32 candidate) view public returns (uint) {
-    return votesReceived[candidate];
-  }
-
-  /* Instead of just taking the candidate name as an argument, we now also
-   require the no. of tokens this voter wants to vote for the candidate
-   */
-  function voteForCandidate(bytes32 candidate, uint votesInTokens) public {
-    uint index = indexOfCandidate(candidate);
-    require(index != uint(-1));
-
-    // msg.sender gives us the address of the account/voter who is trying
-    // to call this function
-    if (voterInfo[msg.sender].tokensUsedPerCandidate.length == 0) {
-      for(uint i = 0; i < candidateList.length; i++) {
-        voterInfo[msg.sender].tokensUsedPerCandidate.push(0);
-      }
+/// @title Voting with delegation.
+contract Ballot {
+    // This declares a new complex type which will
+    // be used for variables later.
+    // It will represent a single voter.
+    struct Voter {
+        uint weight; // weight is accumulated by delegation
+        bool voted;  // if true, that person already voted
+        address delegate; // person delegated to
+        uint vote;   // index of the voted proposal
     }
 
-    // Make sure this voter has enough tokens to cast the vote
-    uint availableTokens = voterInfo[msg.sender].tokensBought - totalTokensUsed(voterInfo[msg.sender].tokensUsedPerCandidate);
-    require(availableTokens >= votesInTokens);
-
-    votesReceived[candidate] += votesInTokens;
-
-    // Store how many tokens were used for this candidate
-    voterInfo[msg.sender].tokensUsedPerCandidate[index] += votesInTokens;
-  }
-
-  // Return the sum of all the tokens used by this voter.
-  function totalTokensUsed(uint[] _tokensUsedPerCandidate) private pure returns (uint) {
-    uint totalUsedTokens = 0;
-    for(uint i = 0; i < _tokensUsedPerCandidate.length; i++) {
-      totalUsedTokens += _tokensUsedPerCandidate[i];
+    // This is a type for a single proposal.
+    struct Proposal {
+        bytes32 name;   // short name (up to 32 bytes)
+        uint voteCount; // number of accumulated votes
     }
-    return totalUsedTokens;
-  }
 
-  function indexOfCandidate(bytes32 candidate) view public returns (uint) {
-    for(uint i = 0; i < candidateList.length; i++) {
-      if (candidateList[i] == candidate) {
-        return i;
-      }
+    address public chairperson;
+
+    // This declares a state variable that
+    // stores a `Voter` struct for each possible address.
+    mapping(address => Voter) public voters;
+
+    event Voted(bytes32 name, uint voteCount);
+
+    // A dynamically-sized array of `Proposal` structs.
+    Proposal[] public proposals;
+
+    /// Create a new ballot to choose one of `proposalNames`.
+    constructor(bytes32[] memory proposalNames) public payable {
+		require(proposalNames.length >= 2, "proposalNames count < 2");
+		require(proposalNames.length <= 20, "proposalNames count > 20");
+        chairperson = msg.sender;
+        voters[chairperson].weight = 1;
+
+        // For each of the provided proposal names,
+        // create a new proposal object and add it
+        // to the end of the array.
+        for (uint i = 0; i < proposalNames.length; i++) {
+            // `Proposal({...})` creates a temporary
+            // Proposal object and `proposals.push(...)`
+            // appends it to the end of `proposals`.
+            proposals.push(Proposal({
+                name: proposalNames[i],
+                voteCount: 0
+            }));
+        }
     }
-    return uint(-1);
-  }
 
-  /* This function is used to purchase the tokens. Note the keyword 'payable'
-   below. By just adding that one keyword to a function, your contract can
-   now accept Ether from anyone who calls this function. Accepting money can
-   not get any easier than this!
-   */
+    // Give `voter` the right to vote on this ballot.
+    // May only be called by `chairperson`.
+    function giveRightToVote(address voter) public {
+        // If the argument of `require` evaluates to `false`,
+        // it terminates and reverts all changes to
+        // the state and to Ether balances. It is often
+        // a good idea to use this if functions are
+        // called incorrectly. But watch out, this
+        // will currently also consume all provided gas
+        // (this is planned to change in the future).
+        require((msg.sender == chairperson) && !voters[voter].voted && (voters[voter].weight == 0));
+        voters[voter].weight = 1;
+    }
 
-  function buy() payable public returns (uint) {
-    uint tokensToBuy = msg.value / tokenPrice;
-    require(tokensToBuy <= balanceTokens);
-    voterInfo[msg.sender].voterAddress = msg.sender;
-    voterInfo[msg.sender].tokensBought += tokensToBuy;
-    balanceTokens -= tokensToBuy;
-    return tokensToBuy;
-  }
+    /// Delegate your vote to the voter `to`.
+    function delegate(address to) public {
+        // assigns reference
+        Voter storage sender = voters[msg.sender];
+        require(!sender.voted);
 
-  function tokensSold() view public returns (uint) {
-    return totalTokens - balanceTokens;
-  }
+        // Self-delegation is not allowed.
+        require(to != msg.sender);
 
-  function voterDetails(address user) view public returns (uint, uint[]) {
-    return (voterInfo[user].tokensBought, voterInfo[user].tokensUsedPerCandidate);
-  }
+        // Forward the delegation as long as
+        // `to` also delegated.
+        // In general, such loops are very dangerous,
+        // because if they run too long, they might
+        // need more gas than is available in a block.
+        // In this case, the delegation will not be executed,
+        // but in other situations, such loops might
+        // cause a contract to get "stuck" completely.
+        while (voters[to].delegate != address(0)) {
+            to = voters[to].delegate;
 
-  /* All the ether sent by voters who purchased the tokens is in this
-   contract's account. This method will be used to transfer out all those ethers
-   in to another account. *** The way this function is written currently, anyone can call
-   this method and transfer the balance in to their account. In reality, you should add
-   check to make sure only the owner of this contract can cash out.
-   */
+            // We found a loop in the delegation, not allowed.
+            require(to != msg.sender);
+        }
 
-  function transferTo(address account) public {
-    account.transfer(this.balance);
-  }
+        // Since `sender` is a reference, this
+        // modifies `voters[msg.sender].voted`
+        sender.voted = true;
+        sender.delegate = to;
+        Voter storage delegateVoter = voters[to];
+        if (delegateVoter.voted) {
+            // If the delegate already voted,
+            // directly add to the number of votes
+            proposals[delegateVoter.vote].voteCount += sender.weight;
+        } else {
+            // If the delegate did not vote yet,
+            // add to her weight.
+            delegateVoter.weight += sender.weight;
+        }
+    }
 
-  function allCandidates() view public returns (bytes32[]) {
-    return candidateList;
-  }
+    /// Give your vote (including votes delegated to you)
+    /// to proposal `proposals[proposal].name`.
+    function vote(uint proposal) public {
+        Voter storage sender = voters[msg.sender];
+        require(!sender.voted);
+        sender.voted = true;
+        sender.vote = proposal;
 
+        // If `proposal` is out of the range of the array,
+        // this will throw automatically and revert all
+        // changes.
+        proposals[proposal].voteCount += sender.weight;
+
+        emit Voted(proposals[proposal].name, proposals[proposal].voteCount);
+    }
+
+    /// @dev Computes the winning proposal taking all
+    /// previous votes into account.
+    function winningProposal() public view
+            returns (uint winner)
+    {
+        uint winningVoteCount = 0;
+        for (uint p = 0; p < proposals.length; p++) {
+            if (proposals[p].voteCount > winningVoteCount) {
+                winningVoteCount = proposals[p].voteCount;
+                winner = p;
+            }
+        }
+    }
+
+    // Calls winningProposal() function to get the index
+    // of the winner contained in the proposals array and then
+    // returns the name of the winner
+    function winnerName() public view
+            returns (bytes32 name)
+    {
+        name = proposals[winningProposal()].name;
+    }
 }

@@ -1292,4 +1292,4 @@ export class BigNumber {
     valueOf(): string;
 }
 
-export default BigNumber;
+export default BigNumber

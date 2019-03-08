@@ -1,4 +1,4 @@
-/// <reference path="bignumber.d.ts" />
+// <reference path="bignumber.d.ts" />
 import * as BigNumber from './bignumber';
 
 interface ITransactionObject {
@@ -34,4 +34,4 @@ interface IContractDeploymentReceipt<T> {
     getDeployed: ()=> T | undefined;
 }
 
-export { ITransactionObject, OnCompletedCallback, IError, IContractDeploymentReceipt }; 
+export { ITransactionObject, OnCompletedCallback, IError, IContractDeploymentReceipt };
